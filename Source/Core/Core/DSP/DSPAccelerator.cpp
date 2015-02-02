@@ -10,6 +10,9 @@
 #include "Core/DSP/DSPHost.h"
 #include "Core/DSP/DSPHWInterface.h"
 #include "Core/DSP/DSPInterpreter.h"
+
+// #include <iostream>
+
 // The hardware adpcm decoder :)
 static s16 ADPCM_Step(u32& _rSamplePos)
 {
@@ -46,7 +49,8 @@ static s16 ADPCM_Step(u32& _rSamplePos)
 
 	// The advanced interpolation (linear, polyphase,...) is done by the ucode,
 	// so we don't need to bother with it here.
-	return val;
+
+	return 0;
 }
 
 u16 dsp_read_aram_d3()
