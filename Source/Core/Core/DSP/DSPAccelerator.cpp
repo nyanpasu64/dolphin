@@ -4,15 +4,52 @@
 
 #include "Common/CommonTypes.h"
 #include "Common/MathUtil.h"
+#include "Common/FileUtil.h"
 
 #include "Core/DSP/DSPAccelerator.h"
 #include "Core/DSP/DSPCore.h"
 #include "Core/DSP/DSPHost.h"
 #include "Core/DSP/DSPHWInterface.h"
 #include "Core/DSP/DSPInterpreter.h"
+
+#include <fstream>
+
+#include <set>
+#include <vector>
+#include <tuple>
+
+#include "Common/Logging/Log.h"
+
+std::ofstream logfile;
+
+using std::set;
+using std::vector;
+using std::tuple;
+using std::fstream;
+
+typedef tuple<vector<s16>, u16, u16, u16, u32, u8> adpcm_byte;
+
+set<adpcm_byte> written, buffered;
+
+template <typename T>
+void insertVec(vector<u8> &vec, T num) {
+	vec.insert(vec.end(), (u8*)&num, (u8*)(&num + 1));
+}
+
+template <typename T>
+void insertVec(vector<u8> &vec, T* arr, size_t len) {
+	vec.insert(vec.end(), (u8*)arr, (u8*)(arr + len));
+}
+
 // The hardware adpcm decoder :)
 static s16 ADPCM_Step(u32& _rSamplePos)
 {
+	// Open log file.
+	if (!logfile.is_open())
+	{
+		logfile.open(File::GetUserPath(D_DUMPAUDIO_IDX) + "adpcm_dump.bin", fstream::out | fstream::binary | fstream::trunc);
+	}
+
 	const s16 *pCoefTable = (const s16 *)&g_dsp.ifx_regs[DSP_COEF_A1_0];
 
 	if ((_rSamplePos & 15) == 0)
@@ -38,6 +75,48 @@ static s16 ADPCM_Step(u32& _rSamplePos)
 	int val = (scale * temp) + ((0x400 + coef1 * (s16)g_dsp.ifx_regs[DSP_YN1] + coef2 * (s16)g_dsp.ifx_regs[DSP_YN2]) >> 11);
 
 	MathUtil::Clamp(&val, -0x7FFF, 0x7FFF);
+
+	// ********
+	// LOG OUTPUT
+	// ********
+
+	adpcm_byte new_data = adpcm_byte(
+		vector<s16>(pCoefTable, pCoefTable + 16),
+		g_dsp.ifx_regs[DSP_YN1],
+		g_dsp.ifx_regs[DSP_YN2],
+		g_dsp.ifx_regs[DSP_PRED_SCALE],
+		_rSamplePos >> 1,
+		DSPHost::ReadHostMemory(_rSamplePos >> 1)
+	);
+
+	if (written.find(new_data) == written.end()) {
+		// buffered.insert(new_data);
+		written.insert(new_data);
+
+		vector<u8> log_bytes;
+
+		// 32 BYTES
+		insertVec(log_bytes, pCoefTable, 16);
+
+		// 6 BYTES
+		insertVec(log_bytes, g_dsp.ifx_regs[DSP_YN1]);
+		insertVec(log_bytes, g_dsp.ifx_regs[DSP_YN2]);
+		insertVec(log_bytes, g_dsp.ifx_regs[DSP_PRED_SCALE]);
+
+		// 4 BYTES
+		insertVec(log_bytes, _rSamplePos >> 1);
+
+		// 1 BYTE
+		insertVec(log_bytes, DSPHost::ReadHostMemory(_rSamplePos >> 1));
+
+		logfile.write((char*)&(log_bytes[0]), log_bytes.size());
+
+		// Flushing slows it down. You have to quit before the file can be read, even without flushing. (Windows)
+		// So flushing slows it down and doesn't allow you to read the data any faster anyway.
+		// logfile.flush();
+		// log_bytes now contains 43 bytes.
+		// ERROR_LOG(AUDIO, "%d", log_bytes.size());
+	}
 
 	g_dsp.ifx_regs[DSP_YN2] = g_dsp.ifx_regs[DSP_YN1];
 	g_dsp.ifx_regs[DSP_YN1] = val;
