@@ -80,42 +80,44 @@ static s16 ADPCM_Step(u32& _rSamplePos)
 	// LOG OUTPUT
 	// ********
 
-	adpcm_byte new_data = adpcm_byte(
-		vector<s16>(pCoefTable, pCoefTable + 16),
-		g_dsp.ifx_regs[DSP_YN1],
-		g_dsp.ifx_regs[DSP_YN2],
-		g_dsp.ifx_regs[DSP_PRED_SCALE],
-		_rSamplePos >> 1,
-		DSPHost::ReadHostMemory(_rSamplePos >> 1)
-	);
+	if (_rSamplePos % 2 == 1) {
+		adpcm_byte new_data = adpcm_byte(
+			vector<s16>(pCoefTable, pCoefTable + 16),
+			g_dsp.ifx_regs[DSP_YN1],
+			g_dsp.ifx_regs[DSP_YN2],
+			g_dsp.ifx_regs[DSP_PRED_SCALE],
+			_rSamplePos >> 1,
+			DSPHost::ReadHostMemory(_rSamplePos >> 1)
+			);
 
-	if (written.find(new_data) == written.end()) {
-		// buffered.insert(new_data);
-		written.insert(new_data);
+		if (written.find(new_data) == written.end()) {
+			// buffered.insert(new_data);
+			written.insert(new_data);
 
-		vector<u8> log_bytes;
+			vector<u8> log_bytes;
 
-		// 32 BYTES
-		insertVec(log_bytes, pCoefTable, 16);
+			// 32 BYTES
+			insertVec(log_bytes, pCoefTable, 16);
 
-		// 6 BYTES
-		insertVec(log_bytes, g_dsp.ifx_regs[DSP_YN1]);
-		insertVec(log_bytes, g_dsp.ifx_regs[DSP_YN2]);
-		insertVec(log_bytes, g_dsp.ifx_regs[DSP_PRED_SCALE]);
+			// 6 BYTES
+			insertVec(log_bytes, g_dsp.ifx_regs[DSP_YN1]);
+			insertVec(log_bytes, g_dsp.ifx_regs[DSP_YN2]);
+			insertVec(log_bytes, g_dsp.ifx_regs[DSP_PRED_SCALE]);
 
-		// 4 BYTES
-		insertVec(log_bytes, _rSamplePos >> 1);
+			// 4 BYTES
+			insertVec(log_bytes, _rSamplePos >> 1);
 
-		// 1 BYTE
-		insertVec(log_bytes, DSPHost::ReadHostMemory(_rSamplePos >> 1));
+			// 1 BYTE
+			insertVec(log_bytes, DSPHost::ReadHostMemory(_rSamplePos >> 1));
 
-		logfile.write((char*)&(log_bytes[0]), log_bytes.size());
+			logfile.write((char*)&(log_bytes[0]), log_bytes.size());
 
-		// Flushing slows it down. You have to quit before the file can be read, even without flushing. (Windows)
-		// So flushing slows it down and doesn't allow you to read the data any faster anyway.
-		// logfile.flush();
-		// log_bytes now contains 43 bytes.
-		// ERROR_LOG(AUDIO, "%d", log_bytes.size());
+			// Flushing slows it down. You have to quit before the file can be read, even without flushing. (Windows)
+			// So flushing slows it down and doesn't allow you to read the data any faster anyway.
+			// logfile.flush();
+			// log_bytes now contains 43 bytes.
+			// ERROR_LOG(AUDIO, "%d", log_bytes.size());
+		}
 	}
 
 	g_dsp.ifx_regs[DSP_YN2] = g_dsp.ifx_regs[DSP_YN1];
