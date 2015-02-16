@@ -80,7 +80,7 @@ static s16 ADPCM_Step(u32& _rSamplePos)
 	// LOG OUTPUT
 	// ********
 
-	if (_rSamplePos % 2 == 1) {
+	if (_rSamplePos % 2 == 0) {
 		adpcm_byte new_data = adpcm_byte(
 			vector<s16>(pCoefTable, pCoefTable + 16),
 			g_dsp.ifx_regs[DSP_YN1],
