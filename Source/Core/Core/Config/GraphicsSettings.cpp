@@ -75,13 +75,15 @@ const ConfigInfo<bool> GFX_ENABLE_VALIDATION_LAYER{
 #if defined(ANDROID)
 const ConfigInfo<bool> GFX_BACKEND_MULTITHREADING{
     {System::GFX, "Settings", "BackendMultithreading"}, false};
+const ConfigInfo<int> GFX_COMMAND_BUFFER_EXECUTE_INTERVAL{
+    {System::GFX, "Settings", "CommandBufferExecuteInterval"}, 0};
 #else
 const ConfigInfo<bool> GFX_BACKEND_MULTITHREADING{
     {System::GFX, "Settings", "BackendMultithreading"}, true};
-#endif
-
 const ConfigInfo<int> GFX_COMMAND_BUFFER_EXECUTE_INTERVAL{
     {System::GFX, "Settings", "CommandBufferExecuteInterval"}, 100};
+#endif
+
 const ConfigInfo<bool> GFX_SHADER_CACHE{{System::GFX, "Settings", "ShaderCache"}, true};
 const ConfigInfo<bool> GFX_WAIT_FOR_SHADERS_BEFORE_STARTING{
     {System::GFX, "Settings", "WaitForShadersBeforeStarting"}, false};
@@ -152,6 +154,8 @@ const ConfigInfo<bool> GFX_HACK_DISABLE_COPY_TO_VRAM{{System::GFX, "Hacks", "Dis
                                                      false};
 const ConfigInfo<bool> GFX_HACK_DEFER_EFB_COPIES{{System::GFX, "Hacks", "DeferEFBCopies"}, true};
 const ConfigInfo<bool> GFX_HACK_IMMEDIATE_XFB{{System::GFX, "Hacks", "ImmediateXFBEnable"}, false};
+const ConfigInfo<bool> GFX_HACK_SKIP_DUPLICATE_XFBS{{System::GFX, "Hacks", "SkipDuplicateXFBs"},
+                                                    true};
 const ConfigInfo<bool> GFX_HACK_COPY_EFB_SCALED{{System::GFX, "Hacks", "EFBScaledCopy"}, true};
 const ConfigInfo<bool> GFX_HACK_EFB_EMULATE_FORMAT_CHANGES{
     {System::GFX, "Hacks", "EFBEmulateFormatChanges"}, false};

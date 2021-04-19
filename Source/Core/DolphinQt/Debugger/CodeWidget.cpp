@@ -34,6 +34,8 @@ CodeWidget::CodeWidget(QWidget* parent) : QDockWidget(parent)
 
   setAllowedAreas(Qt::AllDockWidgetAreas);
 
+  CreateWidgets();
+
   auto& settings = Settings::GetQSettings();
 
   restoreGeometry(settings.value(QStringLiteral("codewidget/geometry")).toByteArray());
@@ -57,7 +59,6 @@ CodeWidget::CodeWidget(QWidget* parent) : QDockWidget(parent)
 
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, &CodeWidget::Update);
 
-  CreateWidgets();
   ConnectWidgets();
 
   m_code_splitter->restoreState(
@@ -156,6 +157,7 @@ void CodeWidget::CreateWidgets()
 void CodeWidget::ConnectWidgets()
 {
   connect(m_search_address, &QLineEdit::textChanged, this, &CodeWidget::OnSearchAddress);
+  connect(m_search_address, &QLineEdit::returnPressed, this, &CodeWidget::OnSearchAddress);
   connect(m_search_symbols, &QLineEdit::textChanged, this, &CodeWidget::OnSearchSymbols);
 
   connect(m_symbols_list, &QListWidget::itemPressed, this, &CodeWidget::OnSelectSymbol);

@@ -22,12 +22,13 @@
 #include <array>
 #include <string>
 
+#include <fmt/format.h>
+
 #include "Common/CommonTypes.h"
 #include "Common/Config/Config.h"
 #include "Common/FileUtil.h"
 #include "Common/IniFile.h"
 #include "Common/Logging/Log.h"
-#include "Common/StringUtil.h"
 
 #include "Core/Boot/Boot.h"
 #include "Core/Config/MainSettings.h"
@@ -97,7 +98,7 @@ private:
   std::string strBackend;
   std::string sBackend;
   std::string m_strGPUDeterminismMode;
-  std::array<int, MAX_BBMOTES> iWiimoteSource;
+  std::array<WiimoteSource, MAX_BBMOTES> iWiimoteSource;
   std::array<SerialInterface::SIDevices, SerialInterface::MAX_SI_CHANNELS> Pads;
   std::array<ExpansionInterface::TEXIDevices, ExpansionInterface::MAX_EXI_CHANNELS> m_EXIDevice;
 };
@@ -132,7 +133,9 @@ void ConfigCache::SaveConfig(const SConfig& config)
   m_OCEnable = config.m_OCEnable;
   m_bt_passthrough_enabled = config.m_bt_passthrough_enabled;
 
-  std::copy(std::begin(g_wiimote_sources), std::end(g_wiimote_sources), std::begin(iWiimoteSource));
+  for (int i = 0; i != MAX_BBMOTES; ++i)
+    iWiimoteSource[i] = WiimoteCommon::GetSource(i);
+
   std::copy(std::begin(config.m_SIDevice), std::end(config.m_SIDevice), std::begin(Pads));
   std::copy(std::begin(config.m_EXIDevice), std::end(config.m_EXIDevice), std::begin(m_EXIDevice));
 
@@ -179,10 +182,7 @@ void ConfigCache::RestoreConfig(SConfig* config)
     for (unsigned int i = 0; i < MAX_BBMOTES; ++i)
     {
       if (bSetWiimoteSource[i])
-      {
-        g_wiimote_sources[i] = iWiimoteSource[i];
-        WiimoteReal::ChangeWiimoteSource(i, iWiimoteSource[i]);
-      }
+        WiimoteCommon::SetSource(i, iWiimoteSource[i]);
     }
   }
 
@@ -211,6 +211,11 @@ void ConfigCache::RestoreConfig(SConfig* config)
 }
 
 static ConfigCache config_cache;
+
+void SetEmulationSpeedReset(bool value)
+{
+  config_cache.bSetEmulationSpeed = value;
+}
 
 static GPUDeterminismMode ParseGPUDeterminismMode(const std::string& mode)
 {
@@ -283,7 +288,7 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     for (unsigned int i = 0; i < SerialInterface::MAX_SI_CHANNELS; ++i)
     {
       int source;
-      controls_section->Get(StringFromFormat("PadType%u", i), &source, -1);
+      controls_section->Get(fmt::format("PadType{}", i), &source, -1);
       if (source >= SerialInterface::SIDEVICE_NONE && source < SerialInterface::SIDEVICE_COUNT)
       {
         StartUp.m_SIDevice[i] = static_cast<SerialInterface::SIDevices>(source);
@@ -297,22 +302,23 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
       int source;
       for (unsigned int i = 0; i < MAX_WIIMOTES; ++i)
       {
-        controls_section->Get(StringFromFormat("WiimoteSource%u", i), &source, -1);
-        if (source != -1 && g_wiimote_sources[i] != (unsigned)source &&
-            source >= WIIMOTE_SRC_NONE && source <= WIIMOTE_SRC_REAL)
+        controls_section->Get(fmt::format("WiimoteSource{}", i), &source, -1);
+        if (source != -1 && WiimoteCommon::GetSource(i) != WiimoteSource(source) &&
+            WiimoteSource(source) >= WiimoteSource::None &&
+            WiimoteSource(source) <= WiimoteSource::Real)
         {
           config_cache.bSetWiimoteSource[i] = true;
-          g_wiimote_sources[i] = source;
-          WiimoteReal::ChangeWiimoteSource(i, source);
+          WiimoteCommon::SetSource(i, WiimoteSource(source));
         }
       }
       controls_section->Get("WiimoteSourceBB", &source, -1);
-      if (source != -1 && g_wiimote_sources[WIIMOTE_BALANCE_BOARD] != (unsigned)source &&
-          (source == WIIMOTE_SRC_NONE || source == WIIMOTE_SRC_REAL))
+      if (source != -1 &&
+          WiimoteCommon::GetSource(WIIMOTE_BALANCE_BOARD) != WiimoteSource(source) &&
+          (WiimoteSource(source) == WiimoteSource::None ||
+           WiimoteSource(source) == WiimoteSource::Real))
       {
         config_cache.bSetWiimoteSource[WIIMOTE_BALANCE_BOARD] = true;
-        g_wiimote_sources[WIIMOTE_BALANCE_BOARD] = source;
-        WiimoteReal::ChangeWiimoteSource(WIIMOTE_BALANCE_BOARD, source);
+        WiimoteCommon::SetSource(WIIMOTE_BALANCE_BOARD, WiimoteSource(source));
       }
     }
   }
@@ -335,12 +341,14 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
     {
       if (Movie::IsUsingMemcard(i) && Movie::IsStartingFromClearSave() && !StartUp.bWii)
       {
-        if (File::Exists(File::GetUserPath(D_GCUSER_IDX) +
-                         StringFromFormat("Movie%s.raw", (i == 0) ? "A" : "B")))
-          File::Delete(File::GetUserPath(D_GCUSER_IDX) +
-                       StringFromFormat("Movie%s.raw", (i == 0) ? "A" : "B"));
-        if (File::Exists(File::GetUserPath(D_GCUSER_IDX) + "Movie"))
-          File::DeleteDirRecursively(File::GetUserPath(D_GCUSER_IDX) + "Movie");
+        const auto raw_path =
+            File::GetUserPath(D_GCUSER_IDX) + fmt::format("Movie{}.raw", (i == 0) ? 'A' : 'B');
+        if (File::Exists(raw_path))
+          File::Delete(raw_path);
+
+        const auto movie_path = File::GetUserPath(D_GCUSER_IDX) + "Movie";
+        if (File::Exists(movie_path))
+          File::DeleteDirRecursively(movie_path);
       }
     }
   }
@@ -416,6 +424,8 @@ bool BootCore(std::unique_ptr<BootParameters> boot, const WindowSystemInfo& wsi)
           break;
         case DiscIO::Region::NTSC_K:
           Config::SetCurrent(Config::SYSCONF_COUNTRY, 0x88);  // South Korea
+          break;
+        case DiscIO::Region::Unknown:
           break;
         }
       }

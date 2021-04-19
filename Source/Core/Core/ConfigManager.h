@@ -53,7 +53,6 @@ struct BootParameters;
 #define BACKEND_CUBEB "Cubeb"
 #define BACKEND_OPENAL "OpenAL"
 #define BACKEND_PULSEAUDIO "Pulse"
-#define BACKEND_XAUDIO2 "XAudio2"
 #define BACKEND_OPENSLES "OpenSLES"
 #define BACKEND_WASAPI _trans("WASAPI (Exclusive Mode)")
 
@@ -106,6 +105,7 @@ struct SConfig
   bool bJITPairedOff = false;
   bool bJITSystemRegistersOff = false;
   bool bJITBranchOff = false;
+  bool bJITRegisterCacheOff = false;
 
   bool bFastmem;
   bool bFPRF = false;
@@ -173,6 +173,9 @@ struct SConfig
   // Custom RTC
   bool bEnableCustomRTC;
   u32 m_customRTCValue;
+
+  // DPL2
+  bool ShouldUseDPL2Decoder() const;
 
   DiscIO::Region m_region;
 

@@ -40,8 +40,7 @@ enum class StereoMode : int
   TAB,
   Anaglyph,
   QuadBuffer,
-  Passive,
-  Nvidia3DVision,
+  Passive
 };
 
 enum class ShaderCompilationMode : int
@@ -125,6 +124,7 @@ struct VideoConfig final
   bool bDisableCopyToVRAM;
   bool bDeferEFBCopies;
   bool bImmediateXFB;
+  bool bSkipPresentingDuplicateXFBs;
   bool bCopyEFBScaled;
   int iSafeTextureCache_ColorSamples;
   float fAspectRatioHackW, fAspectRatioHackH;

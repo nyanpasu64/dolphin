@@ -5,11 +5,7 @@
 #include <algorithm>
 #include <list>
 #include <map>
-#if __APPLE__
-#include <mutex>
-#else
 #include <shared_mutex>
-#endif
 
 #include "Common/Config/Config.h"
 
@@ -21,21 +17,12 @@ static Layers s_layers;
 static std::list<ConfigChangedCallback> s_callbacks;
 static u32 s_callback_guards = 0;
 
-// Mac supports shared_mutex since 10.12 and we're targeting 10.10,
-// so only use unique locks there...
-#if __APPLE__
-static std::mutex s_layers_rw_lock;
-
-using ReadLock = std::unique_lock<std::mutex>;
-using WriteLock = std::unique_lock<std::mutex>;
-#else
 static std::shared_mutex s_layers_rw_lock;
 
 using ReadLock = std::shared_lock<std::shared_mutex>;
 using WriteLock = std::unique_lock<std::shared_mutex>;
-#endif
 
-void AddLayerInternal(std::shared_ptr<Layer> layer)
+static void AddLayerInternal(std::shared_ptr<Layer> layer)
 {
   {
     WriteLock lock(s_layers_rw_lock);
@@ -133,9 +120,15 @@ void ClearCurrentRunLayer()
 }
 
 static const std::map<System, std::string> system_to_name = {
-    {System::Main, "Dolphin"},          {System::GCPad, "GCPad"},    {System::WiiPad, "Wiimote"},
-    {System::GCKeyboard, "GCKeyboard"}, {System::GFX, "Graphics"},   {System::Logger, "Logger"},
-    {System::Debugger, "Debugger"},     {System::SYSCONF, "SYSCONF"}};
+    {System::Main, "Dolphin"},
+    {System::GCPad, "GCPad"},
+    {System::WiiPad, "Wiimote"},
+    {System::GCKeyboard, "GCKeyboard"},
+    {System::GFX, "Graphics"},
+    {System::Logger, "Logger"},
+    {System::Debugger, "Debugger"},
+    {System::SYSCONF, "SYSCONF"},
+    {System::DualShockUDPClient, "DualShockUDPClient"}};
 
 const std::string& GetSystemName(System system)
 {

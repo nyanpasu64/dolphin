@@ -102,6 +102,7 @@ void GameList::MakeListView()
   m_list = new QTableView(this);
   m_list->setModel(m_list_proxy);
 
+  m_list->setTabKeyNavigation(false);
   m_list->setSelectionMode(QAbstractItemView::ExtendedSelection);
   m_list->setSelectionBehavior(QAbstractItemView::SelectRows);
   m_list->setAlternatingRowColors(true);
@@ -282,7 +283,7 @@ void GameList::ShowContextMenu(const QPoint&)
 
     if (wii_saves)
     {
-      menu->addAction(tr("Export Wii Saves (Experimental)"), this, &GameList::ExportWiiSave);
+      menu->addAction(tr("Export Wii Saves"), this, &GameList::ExportWiiSave);
       menu->addSeparator();
     }
 
@@ -358,7 +359,7 @@ void GameList::ShowContextMenu(const QPoint&)
     if (platform == DiscIO::Platform::WiiWAD || platform == DiscIO::Platform::WiiDisc)
     {
       menu->addAction(tr("Open Wii &Save Folder"), this, &GameList::OpenWiiSaveFolder);
-      menu->addAction(tr("Export Wii Save (Experimental)"), this, &GameList::ExportWiiSave);
+      menu->addAction(tr("Export Wii Save"), this, &GameList::ExportWiiSave);
       menu->addSeparator();
     }
 
@@ -442,7 +443,7 @@ void GameList::ExportWiiSave()
   for (const auto& game : GetSelectedGames())
   {
     if (!WiiSave::Export(game->GetTitleID(), export_dir.toStdString()))
-      failed.push_back(game->GetName());
+      failed.push_back(game->GetName(UICommon::GameFile::Variant::LongAndPossiblyCustom));
   }
 
   if (!failed.isEmpty())

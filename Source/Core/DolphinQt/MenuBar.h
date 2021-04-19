@@ -175,6 +175,8 @@ private:
   void OnReadOnlyModeChanged(bool read_only);
   void OnDebugModeToggled(bool enabled);
 
+  QString GetSignatureSelector() const;
+
   static QPointer<MenuBar> s_menu_bar;
 
   // File
@@ -259,6 +261,7 @@ private:
   QAction* m_jit_paired_off;
   QAction* m_jit_systemregisters_off;
   QAction* m_jit_branch_off;
+  QAction* m_jit_register_cache_off;
 
   bool m_game_selected = false;
 };

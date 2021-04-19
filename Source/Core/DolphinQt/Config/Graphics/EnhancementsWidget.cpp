@@ -20,6 +20,7 @@
 #include "DolphinQt/Config/Graphics/GraphicsSlider.h"
 #include "DolphinQt/Config/Graphics/GraphicsWindow.h"
 #include "DolphinQt/Config/Graphics/PostProcessingConfigWindow.h"
+#include "DolphinQt/QtUtils/ModalMessageBox.h"
 #include "DolphinQt/Settings.h"
 
 #include "UICommon/VideoUtils.h"
@@ -112,8 +113,9 @@ void EnhancementsWidget::CreateWidgets()
   m_3d_mode = new GraphicsChoice({tr("Off"), tr("Side-by-Side"), tr("Top-and-Bottom"),
                                   tr("Anaglyph"), tr("HDMI 3D"), tr("Passive")},
                                  Config::GFX_STEREO_MODE);
-  m_3d_depth = new GraphicsSlider(0, 100, Config::GFX_STEREO_DEPTH);
-  m_3d_convergence = new GraphicsSlider(0, 200, Config::GFX_STEREO_CONVERGENCE, 100);
+  m_3d_depth = new GraphicsSlider(0, Config::GFX_STEREO_DEPTH_MAXIMUM, Config::GFX_STEREO_DEPTH);
+  m_3d_convergence = new GraphicsSlider(0, Config::GFX_STEREO_CONVERGENCE_MAXIMUM,
+                                        Config::GFX_STEREO_CONVERGENCE, 100);
   m_3d_swap_eyes = new GraphicsBool(tr("Swap Eyes"), Config::GFX_STEREO_SWAP_EYES);
 
   stereoscopy_layout->addWidget(new QLabel(tr("Stereoscopic 3D Mode:")), 0, 0);
@@ -225,17 +227,7 @@ void EnhancementsWidget::LoadSettings()
   LoadPPShaders();
 
   // Stereoscopy
-  bool supports_stereoscopy = g_Config.backend_info.bSupportsGeometryShaders;
-  bool supports_3dvision = g_Config.backend_info.bSupports3DVision;
-
-  bool has_3dvision = m_3d_mode->count() == 7;
-
-  if (has_3dvision && !supports_3dvision)
-    m_3d_mode->removeItem(5);
-
-  if (!has_3dvision && supports_3dvision)
-    m_3d_mode->addItem(tr("NVIDIA 3D Vision"));
-
+  const bool supports_stereoscopy = g_Config.backend_info.bSupportsGeometryShaders;
   m_3d_mode->setEnabled(supports_stereoscopy);
   m_3d_convergence->setEnabled(supports_stereoscopy);
   m_3d_depth->setEnabled(supports_stereoscopy);

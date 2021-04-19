@@ -20,6 +20,10 @@ union TVec3
   TVec3() = default;
   TVec3(T _x, T _y, T _z) : data{_x, _y, _z} {}
 
+  TVec3 Cross(const TVec3& rhs) const
+  {
+    return {(y * rhs.z) - (rhs.y * z), (z * rhs.x) - (rhs.z * x), (x * rhs.y) - (rhs.x * y)};
+  }
   T Dot(const TVec3& other) const { return x * other.x + y * other.y + z * other.z; }
   T LengthSquared() const { return Dot(*this); }
   T Length() const { return std::sqrt(LengthSquared()); }
@@ -269,17 +273,22 @@ class Matrix33
 {
 public:
   static Matrix33 Identity();
+  static Matrix33 FromQuaternion(float x, float y, float z, float w);
 
   // Return a rotation matrix around the x,y,z axis
   static Matrix33 RotateX(float rad);
   static Matrix33 RotateY(float rad);
   static Matrix33 RotateZ(float rad);
 
+  static Matrix33 Rotate(float rad, const Vec3& axis);
+
   static Matrix33 Scale(const Vec3& vec);
 
   // set result = a x b
   static void Multiply(const Matrix33& a, const Matrix33& b, Matrix33* result);
   static void Multiply(const Matrix33& a, const Vec3& vec, Vec3* result);
+
+  Matrix33 Inverted() const;
 
   Matrix33& operator*=(const Matrix33& rhs)
   {

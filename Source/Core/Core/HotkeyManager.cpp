@@ -9,6 +9,8 @@
 #include <string>
 #include <vector>
 
+#include <fmt/format.h>
+
 #include "Common/Common.h"
 #include "Common/CommonTypes.h"
 #include "Common/StringUtil.h"
@@ -20,7 +22,7 @@
 #include "InputCommon/GCPadStatus.h"
 
 // clang-format off
-constexpr std::array<const char*, 134> s_hotkey_labels{{
+constexpr std::array<const char*, 133> s_hotkey_labels{{
     _trans("Open"),
     _trans("Change Disc"),
     _trans("Eject Disc"),
@@ -126,7 +128,6 @@ constexpr std::array<const char*, 134> s_hotkey_labels{{
     _trans("Toggle 3D Side-by-Side"),
     _trans("Toggle 3D Top-Bottom"),
     _trans("Toggle 3D Anaglyph"),
-    _trans("Toggle 3D Vision"),
     _trans("Decrease Depth"),
     _trans("Increase Depth"),
     _trans("Decrease Convergence"),
@@ -291,7 +292,7 @@ constexpr std::array<HotkeyGroupInfo, NUM_HOTKEY_GROUPS> s_groups_info = {
      {_trans("Internal Resolution"), HK_INCREASE_IR, HK_DECREASE_IR},
      {_trans("Freelook"), HK_FREELOOK_DECREASE_SPEED, HK_FREELOOK_RESET},
      // i18n: Stereoscopic 3D
-     {_trans("3D"), HK_TOGGLE_STEREO_SBS, HK_TOGGLE_STEREO_3DVISION},
+     {_trans("3D"), HK_TOGGLE_STEREO_SBS, HK_TOGGLE_STEREO_ANAGLYPH},
      // i18n: Stereoscopic 3D
      {_trans("3D Depth"), HK_DECREASE_DEPTH, HK_INCREASE_CONVERGENCE},
      {_trans("Load State"), HK_LOAD_STATE_SLOT_1, HK_LOAD_STATE_SLOT_SELECTED},
@@ -309,8 +310,7 @@ HotkeyManager::HotkeyManager()
     groups.emplace_back(m_hotkey_groups[group]);
     for (int key = s_groups_info[group].first; key <= s_groups_info[group].last; key++)
     {
-      m_keys[group]->controls.emplace_back(
-          new ControllerEmu::Input(ControllerEmu::Translate, s_hotkey_labels[key]));
+      m_keys[group]->AddInput(ControllerEmu::Translate, s_hotkey_labels[key]);
     }
   }
 }
@@ -427,12 +427,12 @@ void HotkeyManager::LoadDefaults(const ControllerInterface& ciface)
   set_key_expression(HK_FREELOOK_RESET, SHIFT + " & R");
 
   // Savestates
+  const std::string non_fmt = NON + " & `F{}`";
+  const std::string shift_fmt = SHIFT + " & `F{}`";
   for (int i = 0; i < 8; i++)
   {
-    set_key_expression(HK_LOAD_STATE_SLOT_1 + i,
-                       StringFromFormat((NON + " & `F%d`").c_str(), i + 1));
-    set_key_expression(HK_SAVE_STATE_SLOT_1 + i,
-                       StringFromFormat((SHIFT + " & `F%d`").c_str(), i + 1));
+    set_key_expression(HK_LOAD_STATE_SLOT_1 + i, fmt::format(non_fmt, i + 1));
+    set_key_expression(HK_SAVE_STATE_SLOT_1 + i, fmt::format(shift_fmt, i + 1));
   }
   set_key_expression(HK_UNDO_LOAD_STATE, NON + " & `F12`");
   set_key_expression(HK_UNDO_SAVE_STATE, SHIFT + " & `F12`");

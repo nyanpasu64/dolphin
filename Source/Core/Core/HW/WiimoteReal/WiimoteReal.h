@@ -51,8 +51,8 @@ class Wiimote
 public:
   Wiimote(const Wiimote&) = delete;
   Wiimote& operator=(const Wiimote&) = delete;
-  Wiimote(Wiimote&&) = default;
-  Wiimote& operator=(Wiimote&&) = default;
+  Wiimote(Wiimote&&) = delete;
+  Wiimote& operator=(Wiimote&&) = delete;
 
   virtual ~Wiimote() {}
   // This needs to be called in derived destructors!
@@ -192,11 +192,11 @@ void ControlChannel(int wiimote_number, u16 channel_id, const void* data, u32 si
 void Update(int wiimote_number);
 bool CheckForButtonPress(int wiimote_number);
 
-void ChangeWiimoteSource(unsigned int index, int source);
-
 bool IsValidDeviceName(const std::string& name);
 bool IsBalanceBoardName(const std::string& name);
 bool IsNewWiimote(const std::string& identifier);
+
+void HandleWiimoteSourceChange(unsigned int wiimote_number);
 
 #ifdef ANDROID
 void InitAdapterClass();

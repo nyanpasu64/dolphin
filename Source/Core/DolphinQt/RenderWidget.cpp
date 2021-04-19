@@ -7,7 +7,6 @@
 #include <array>
 
 #include <QApplication>
-#include <QDesktopWidget>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QFileInfo>
@@ -19,6 +18,7 @@
 #include <QPalette>
 #include <QScreen>
 #include <QTimer>
+#include <QWindow>
 
 #include "imgui.h"
 
@@ -40,10 +40,11 @@ RenderWidget::RenderWidget(QWidget* parent) : QWidget(parent)
 {
   setWindowTitle(QStringLiteral("Dolphin"));
   setWindowIcon(Resources::GetAppIcon());
+  setWindowRole(QStringLiteral("renderer"));
   setAcceptDrops(true);
 
   QPalette p;
-  p.setColor(QPalette::Background, Qt::black);
+  p.setColor(QPalette::Window, Qt::black);
   setPalette(p);
 
   connect(Host::GetInstance(), &Host::RequestTitle, this, &RenderWidget::setWindowTitle);
@@ -51,7 +52,9 @@ RenderWidget::RenderWidget(QWidget* parent) : QWidget(parent)
     if (!Config::Get(Config::MAIN_RENDER_WINDOW_AUTOSIZE) || isFullScreen() || isMaximized())
       return;
 
-    resize(w, h);
+    const auto dpr = window()->windowHandle()->screen()->devicePixelRatio();
+
+    resize(w / dpr, h / dpr);
   });
 
   connect(&Settings::Instance(), &Settings::EmulationStateChanged, this, [this](Core::State state) {
@@ -162,8 +165,9 @@ void RenderWidget::showFullScreen()
 {
   QWidget::showFullScreen();
 
-  const auto dpr =
-      QGuiApplication::screens()[QApplication::desktop()->screenNumber(this)]->devicePixelRatio();
+  QScreen* screen = window()->windowHandle()->screen();
+
+  const auto dpr = screen->devicePixelRatio();
 
   emit SizeChanged(width() * dpr, height() * dpr);
 }
@@ -221,14 +225,9 @@ bool RenderWidget::event(QEvent* event)
     const QResizeEvent* se = static_cast<QResizeEvent*>(event);
     QSize new_size = se->size();
 
-    auto* desktop = QApplication::desktop();
+    QScreen* screen = window()->windowHandle()->screen();
 
-    int screen_nr = desktop->screenNumber(this);
-
-    if (screen_nr == -1)
-      screen_nr = desktop->screenNumber(parentWidget());
-
-    const auto dpr = desktop->screen(screen_nr)->devicePixelRatio();
+    const auto dpr = screen->devicePixelRatio();
 
     emit SizeChanged(new_size.width() * dpr, new_size.height() * dpr);
     break;

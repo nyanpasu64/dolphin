@@ -30,6 +30,9 @@
 #ifdef CIFACE_USE_PIPES
 #include "InputCommon/ControllerInterface/Pipes/Pipes.h"
 #endif
+#ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
+#include "InputCommon/ControllerInterface/DualShockUDPClient/DualShockUDPClient.h"
+#endif
 
 ControllerInterface g_controller_interface;
 
@@ -67,6 +70,9 @@ void ControllerInterface::Initialize(const WindowSystemInfo& wsi)
 #endif
 #ifdef CIFACE_USE_PIPES
 // nothing needed
+#endif
+#ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
+  ciface::DualShockUDPClient::Init();
 #endif
 
   RefreshDevices();
@@ -122,6 +128,9 @@ void ControllerInterface::RefreshDevices()
 #ifdef CIFACE_USE_PIPES
   ciface::Pipes::PopulateDevices();
 #endif
+#ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
+  ciface::DualShockUDPClient::PopulateDevices();
+#endif
 
   m_is_populating_devices = false;
   InvokeDevicesChangedCallbacks();
@@ -171,6 +180,9 @@ void ControllerInterface::Shutdown()
 #endif
 #ifdef CIFACE_USE_EVDEV
   ciface::evdev::Shutdown();
+#endif
+#ifdef CIFACE_USE_DUALSHOCKUDPCLIENT
+  ciface::DualShockUDPClient::DeInit();
 #endif
 }
 
@@ -243,6 +255,21 @@ void ControllerInterface::UpdateInput()
     for (const auto& d : m_devices)
       d->UpdateInput();
   }
+}
+
+void ControllerInterface::SetAspectRatioAdjustment(float value)
+{
+  m_aspect_ratio_adjustment = value;
+}
+
+Common::Vec2 ControllerInterface::GetWindowInputScale() const
+{
+  const auto ar = m_aspect_ratio_adjustment.load();
+
+  if (ar > 1)
+    return {1.f, ar};
+  else
+    return {1 / ar, 1.f};
 }
 
 // Register a callback to be called when a device is added or removed (as from the input backends'
