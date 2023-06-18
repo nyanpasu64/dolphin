@@ -13,6 +13,9 @@ check_cxx_source_compiles("
 	#if MBEDTLS_VERSION_NUMBER < 0x021C0000
 	#error \"Your mbed TLS version is too old.\"
 	#endif
+	#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+	#error \"Your mbed TLS version is too new (>=3.0).\"
+	#endif
 	int main() {}"
 	MBEDTLS_VERSION_OK)
 
