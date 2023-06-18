@@ -1,12 +1,16 @@
 // Copyright 2010 Dolphin Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <QtDBus>
+
 #include "UICommon/X11Utils.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <spawn.h>
 #include <string>
 #include <sys/wait.h>
@@ -47,19 +51,61 @@ bool ToggleFullscreen(Display* dpy, Window win)
 
 void InhibitScreensaver(Window win, bool suspend)
 {
-  char id[11];
-  snprintf(id, sizeof(id), "0x%lx", win);
+  static std::optional<uint32_t> cookie;
 
-  // Call xdg-screensaver
-  char* argv[4] = {(char*)"xdg-screensaver", (char*)(suspend ? "suspend" : "resume"), id, nullptr};
-  pid_t pid;
-  if (!posix_spawnp(&pid, "xdg-screensaver", nullptr, nullptr, argv, environ))
-  {
-    int status;
-    while (waitpid(pid, &status, 0) == -1)
-      ;
+  // Connect to the D-Bus session bus
+  QDBusConnection connection = QDBusConnection::sessionBus();
+  if (!connection.isConnected()) {
+    WARN_LOG_FMT(VIDEO, "Cannot connect to the D-Bus session bus.");
+    return;
+  }
 
-    INFO_LOG_FMT(VIDEO, "Started xdg-screensaver (PID = {})", pid);
+  if (suspend) {
+    if (cookie) {
+      INFO_LOG_FMT(VIDEO, "Screensaver is already inhibited (cookie = {})", *cookie);
+      return;
+    }
+
+    auto screensaver = QDBusInterface(
+      "org.freedesktop.ScreenSaver",
+      "/org/freedesktop/ScreenSaver",
+      "org.freedesktop.ScreenSaver");
+
+    QDBusReply<uint> reply = screensaver.call("Inhibit",
+      "Dolphin",
+      "Game is running");
+
+    if (!reply.isValid()) {
+      auto err = reply.error().message().toStdString();
+      WARN_LOG_FMT(VIDEO, "Failed to call Inhibit: {}", err.c_str());
+      return;
+    }
+
+    // Store cookie to reenable screensaver.
+    cookie = reply.value();
+    INFO_LOG_FMT(VIDEO, "Inhibited screensaver (cookie = {})", *cookie);
+
+  } else {
+    if (!cookie) {
+      INFO_LOG_FMT(VIDEO, "Screensaver is already allowed");
+      return;
+    }
+
+    auto screensaver = QDBusInterface(
+      "org.freedesktop.ScreenSaver",
+      "/org/freedesktop/ScreenSaver",
+      "org.freedesktop.ScreenSaver");
+
+    // Cancel previous wake request.
+    QDBusReply<uint> reply = screensaver.call("UnInhibit",
+      *cookie);
+    cookie.reset();
+
+    if (!reply.isValid()) {
+      auto err = reply.error().message().toStdString();
+      WARN_LOG_FMT(VIDEO, "Failed to call UnInhibit: {}", err.c_str());
+      return;
+    }
   }
 }
 

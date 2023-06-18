@@ -45,9 +45,12 @@ if ((DEFINED CMAKE_ANDROID_ARCH_ABI AND CMAKE_ANDROID_ARCH_ABI MATCHES "x86|x86_
 endif()
 
 if(ENABLE_X11 AND X11_FOUND)
+  find_package(Qt6 REQUIRED COMPONENTS DBus)
+
   target_include_directories(uicommon PRIVATE ${X11_INCLUDE_DIR})
   target_sources(uicommon PRIVATE X11Utils.cpp)
   target_link_libraries(uicommon PUBLIC ${XRANDR_LIBRARIES})
+  target_link_libraries(uicommon PRIVATE Qt6::DBus)
 endif()
 
 if(LIBUSB_FOUND)
