@@ -61,6 +61,7 @@ namespace GCAdapter
 constexpr unsigned int USB_TIMEOUT_MS = 16;
 
 static bool CheckDeviceAccess(libusb_device* device);
+static bool TakeOwnershipOfHandle();
 static void AddGCAdapter(libusb_device* device);
 static void ResetRumbleLockNeeded();
 #endif
@@ -197,13 +198,19 @@ static void ReadThreadFunc()
   // Reset rumble once on initial reading
   ResetRumble();
 
+  {
+    auto ret = libusb_kernel_driver_active(s_handle, 0);
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "startup: libusb_kernel_driver_active: {}",
+            ret);
+  }
+
   while (s_read_adapter_thread_running.IsSet())
   {
 #if GCADAPTER_USE_LIBUSB_IMPLEMENTATION
     std::array<u8, CONTROLER_INPUT_PAYLOAD_EXPECTED_SIZE> input_buffer;
 
     int payload_size = 0;
-    const int error =
+    int error =
         libusb_interrupt_transfer(s_handle, s_endpoint_in, input_buffer.data(),
                                   int(input_buffer.size()), &payload_size, USB_TIMEOUT_MS);
     if (error != LIBUSB_SUCCESS)
@@ -215,7 +222,20 @@ static void ReadThreadFunc()
     {
       // the variable is cleared by the joiner, not the stopper.
 //      s_read_adapter_thread_running.Clear();
-      break;
+      libusb_device * device = libusb_get_device(s_handle);
+      libusb_config_descriptor* config = nullptr;
+      error = libusb_get_config_descriptor(device, 0, &config);
+      ERROR_LOG_FMT(CONTROLLERINTERFACE, "rescue: libusb_get_config_descriptor: {}",
+                    LibusbUtils::ErrorWrap(error));
+      libusb_free_config_descriptor(config);
+
+      auto ret = libusb_kernel_driver_active(s_handle, 0);
+      ERROR_LOG_FMT(CONTROLLERINTERFACE, "rescue: libusb_kernel_driver_active: {}",
+              ret);
+
+      if (!TakeOwnershipOfHandle()) {
+        break;
+      }
     }
 
     ProcessInputPayload(input_buffer.data(), payload_size);
@@ -515,6 +535,60 @@ static void Setup()
 #endif
 }
 
+static bool TakeOwnershipOfHandle() {
+  bool detach_failed = false;
+  int ret = libusb_kernel_driver_active(s_handle, 0);
+  if (ret == 1)  // 1: kernel driver is active
+  {
+    // On macos detaching would fail without root or entitlement.
+    // We assume user is using GCAdapterDriver and therefor don't want to detach anything
+#if !defined(__APPLE__)
+    ret = libusb_detach_kernel_driver(s_handle, 0);
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "libusb_detach_kernel_driver = {}",
+                  LibusbUtils::ErrorWrap(ret));
+    detach_failed =
+        ret < LIBUSB_SUCCESS && ret != LIBUSB_ERROR_NOT_FOUND && ret != LIBUSB_ERROR_NOT_SUPPORTED;
+#endif
+    if (detach_failed)
+    {
+      ERROR_LOG_FMT(CONTROLLERINTERFACE, "libusb_detach_kernel_driver failed: {}",
+                    LibusbUtils::ErrorWrap(ret));
+    }
+  }
+  else if (ret != 0)  // 0: kernel driver is not active, but otherwise no error.
+  {
+    // Neither 0 nor 1 means an error occured.
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "libusb_kernel_driver_active failed: {}",
+                  LibusbUtils::ErrorWrap(ret));
+  }
+
+  // This call makes Nyko-brand (and perhaps other) adapters work.
+  // However it returns LIBUSB_ERROR_PIPE with Mayflash adapters.
+  const int transfer = libusb_control_transfer(s_handle, 0x21, 11, 0x0001, 0, nullptr, 0, 1000);
+  if (transfer < LIBUSB_SUCCESS)
+  {
+    WARN_LOG_FMT(CONTROLLERINTERFACE, "libusb_control_transfer failed: {}",
+                 LibusbUtils::ErrorWrap(transfer));
+  }
+
+  // this split is needed so that we don't avoid claiming the interface when
+  // detaching the kernel driver is successful
+  if (detach_failed)
+  {
+    return false;
+  }
+
+  ret = libusb_claim_interface(s_handle, 0);
+  if (ret != LIBUSB_SUCCESS)
+  {
+    ERROR_LOG_FMT(CONTROLLERINTERFACE, "libusb_claim_interface failed: {}",
+                  LibusbUtils::ErrorWrap(ret));
+    return false;
+  }
+
+  return true;
+}
+
 #if GCADAPTER_USE_LIBUSB_IMPLEMENTATION
 static bool CheckDeviceAccess(libusb_device* device)
 {
@@ -559,54 +633,7 @@ static bool CheckDeviceAccess(libusb_device* device)
                   LibusbUtils::ErrorWrap(ret));
     return false;
   }
-
-  bool detach_failed = false;
-  ret = libusb_kernel_driver_active(s_handle, 0);
-  if (ret == 1)  // 1: kernel driver is active
-  {
-    // On macos detaching would fail without root or entitlement.
-    // We assume user is using GCAdapterDriver and therefor don't want to detach anything
-#if !defined(__APPLE__)
-    ret = libusb_detach_kernel_driver(s_handle, 0);
-    detach_failed =
-        ret < LIBUSB_SUCCESS && ret != LIBUSB_ERROR_NOT_FOUND && ret != LIBUSB_ERROR_NOT_SUPPORTED;
-#endif
-    if (detach_failed)
-    {
-      ERROR_LOG_FMT(CONTROLLERINTERFACE, "libusb_detach_kernel_driver failed: {}",
-                    LibusbUtils::ErrorWrap(ret));
-    }
-  }
-  else if (ret != 0)  // 0: kernel driver is not active, but otherwise no error.
-  {
-    // Neither 0 nor 1 means an error occured.
-    ERROR_LOG_FMT(CONTROLLERINTERFACE, "libusb_kernel_driver_active failed: {}",
-                  LibusbUtils::ErrorWrap(ret));
-  }
-
-  // This call makes Nyko-brand (and perhaps other) adapters work.
-  // However it returns LIBUSB_ERROR_PIPE with Mayflash adapters.
-  const int transfer = libusb_control_transfer(s_handle, 0x21, 11, 0x0001, 0, nullptr, 0, 1000);
-  if (transfer < LIBUSB_SUCCESS)
-  {
-    WARN_LOG_FMT(CONTROLLERINTERFACE, "libusb_control_transfer failed: {}",
-                 LibusbUtils::ErrorWrap(transfer));
-  }
-
-  // this split is needed so that we don't avoid claiming the interface when
-  // detaching the kernel driver is successful
-  if (detach_failed)
-  {
-    libusb_close(s_handle);
-    s_handle = nullptr;
-    return false;
-  }
-
-  ret = libusb_claim_interface(s_handle, 0);
-  if (ret != LIBUSB_SUCCESS)
-  {
-    ERROR_LOG_FMT(CONTROLLERINTERFACE, "libusb_claim_interface failed: {}",
-                  LibusbUtils::ErrorWrap(ret));
+  if (!TakeOwnershipOfHandle()) {
     libusb_close(s_handle);
     s_handle = nullptr;
     return false;
