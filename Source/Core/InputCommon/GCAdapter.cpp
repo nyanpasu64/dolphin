@@ -211,6 +211,12 @@ static void ReadThreadFunc()
       ERROR_LOG_FMT(CONTROLLERINTERFACE, "Read: libusb_interrupt_transfer failed: {}",
                     LibusbUtils::ErrorWrap(error));
     }
+    if (error == LIBUSB_ERROR_IO)
+    {
+      // the variable is cleared by the joiner, not the stopper.
+//      s_read_adapter_thread_running.Clear();
+      break;
+    }
 
     ProcessInputPayload(input_buffer.data(), payload_size);
 
