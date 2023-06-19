@@ -203,7 +203,7 @@ static void ReadThreadFunc()
     std::array<u8, CONTROLER_INPUT_PAYLOAD_EXPECTED_SIZE> input_buffer;
 
     int payload_size = 0;
-    const int error =
+    int error =
         libusb_interrupt_transfer(s_handle, s_endpoint_in, input_buffer.data(),
                                   int(input_buffer.size()), &payload_size, USB_TIMEOUT_MS);
     if (error != LIBUSB_SUCCESS)
@@ -213,9 +213,15 @@ static void ReadThreadFunc()
     }
     if (error == LIBUSB_ERROR_IO)
     {
-      // the variable is cleared by the joiner, not the stopper.
-//      s_read_adapter_thread_running.Clear();
-      break;
+      // s_read_adapter_thread_running is cleared by the joiner, not the stopper.
+
+      // Reset the device, which may trigger a replug.
+      error = libusb_reset_device(s_handle);
+      ERROR_LOG_FMT(CONTROLLERINTERFACE, "Read: libusb_reset_device: {}",
+                    LibusbUtils::ErrorWrap(error));
+      if (error != 0) {
+        break;
+      }
     }
 
     ProcessInputPayload(input_buffer.data(), payload_size);
