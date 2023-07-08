@@ -62,7 +62,9 @@ unsigned int Mixer::MixerFifo::Mix(short* samples, unsigned int numSamples,
                                    bool consider_framelimit, float emulationspeed,
                                    int timing_variance)
 {
-  unsigned int currentSample = 0;
+  fmt::print(stderr,
+    "numSamples={}, consider_framelimit={}, emulationspeed={}, timing_variance={}\n",
+    numSamples, consider_framelimit, emulationspeed, timing_variance);
 
   // Cache access in non-volatile variable
   // This is the only function changing the read value, so it's safe to
@@ -96,9 +98,14 @@ unsigned int Mixer::MixerFifo::Mix(short* samples, unsigned int numSamples,
       offset = -MAX_FREQ_SHIFT;
 
     aid_sample_rate = (aid_sample_rate + offset) * emulationspeed;
+    fmt::print(stderr,
+      "m_input_sample_rate_divisor={}, low_watermark={}, numLeft={}, m_numLeftI={}\n",
+      m_input_sample_rate_divisor, low_watermark, numLeft, m_numLeftI);
+    fmt::print(stderr, "offset={}, ", offset);
   }
 
   const u32 ratio = (u32)(65536.0f * aid_sample_rate / (float)m_mixer->m_sampleRate);
+  fmt::print(stderr, "aid_sample_rate={}, ratio={}\n\n", aid_sample_rate, ratio);
 
   s32 lvolume = m_LVolume.load();
   s32 rvolume = m_RVolume.load();
@@ -107,6 +114,7 @@ unsigned int Mixer::MixerFifo::Mix(short* samples, unsigned int numSamples,
     return m_little_endian ? m_buffer[index] : Common::swap16(m_buffer[index]);
   };
 
+  unsigned int currentSample = 0;
   // TODO: consider a higher-quality resampling algorithm.
   for (; currentSample < numSamples * 2 && ((indexW - indexR) & INDEX_MASK) > 2; currentSample += 2)
   {
@@ -203,11 +211,11 @@ unsigned int Mixer::Mix(short* samples, unsigned int num_samples)
   else
   {
     m_dma_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
-    m_streaming_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
-    m_wiimote_speaker_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
-    m_skylander_portal_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
-    for (auto& mixer : m_gba_mixers)
-      mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
+//    m_streaming_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
+//    m_wiimote_speaker_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
+//    m_skylander_portal_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
+//    for (auto& mixer : m_gba_mixers)
+//      mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
     m_is_stretching = false;
   }
 
