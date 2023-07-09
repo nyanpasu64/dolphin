@@ -91,15 +91,13 @@ unsigned int Mixer::MixerFifo::Mix(short* samples, unsigned int numSamples,
                         (static_cast<u64>(m_input_sample_rate_divisor) * 1000);
     low_watermark = std::min(low_watermark, MAX_SAMPLES / 2);
 
-    bool resync = m_resyncReader.load(std::memory_order_relaxed);
+    const bool is_ffw = Core::GetIsThrottlerTempDisabled();
+    const bool resync = m_was_fast_forwarding && !is_ffw;
+    m_was_fast_forwarding = is_ffw;
+
     if (resync)
     {
       INFO_LOG_FMT(AUDIO, "Resyncing after fast forward");
-      std::atomic_thread_fence(std::memory_order_acquire);
-
-      // If the writer stores true multiple times and we only unset the flag once, it's
-      // still safe because we'll reset indexR at least once.
-      m_resyncReader.store(false, std::memory_order_relaxed);
 
       // Throw away extra audio when the writer exits fast forward.
       if (numLeft > low_watermark)
@@ -300,24 +298,9 @@ void Mixer::MixerFifo::PushSamples(const short* samples, unsigned int num_sample
   m_indexW.fetch_add(num_samples * 2);
 }
 
-void Mixer::MixerFifo::EndFastForward()
-{
-  m_resyncReader.store(true, std::memory_order_release);
-}
-
 void Mixer::PushSamples(const short* samples, unsigned int num_samples)
 {
   m_dma_mixer.PushSamples(samples, num_samples);
-
-  bool is_ffw = Core::GetIsThrottlerTempDisabled();
-  if (m_was_fast_forwarding && !is_ffw)
-  {
-    // TODO resynchronize the other mixers too
-    // TODO resample all mixers together
-    m_dma_mixer.EndFastForward();
-  }
-  m_was_fast_forwarding = is_ffw;
-
   if (m_log_dsp_audio)
   {
     int sample_rate_divisor = m_dma_mixer.GetInputSampleRateDivisor();

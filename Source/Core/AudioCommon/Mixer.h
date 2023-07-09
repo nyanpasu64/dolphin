@@ -71,7 +71,6 @@ private:
     }
     void DoState(PointerWrap& p);
     void PushSamples(const short* samples, unsigned int num_samples);
-    void EndFastForward();
     unsigned int Mix(short* samples, unsigned int numSamples, bool consider_framelimit,
                      float emulationspeed, int timing_variance);
     void SetInputSampleRateDivisor(unsigned int rate_divisor);
@@ -84,11 +83,7 @@ private:
     Mixer* m_mixer;
     unsigned m_input_sample_rate_divisor;
     bool m_little_endian;
-
-    // Set to true after the writer finishes fast-forwarding (which scrambles the
-    // audio), for the reader to fast-forward to resync latency (which also scrambles audio).
-    std::atomic<bool> m_resyncReader;
-
+    bool m_was_fast_forwarding = false;
     std::array<short, MAX_SAMPLES * 2> m_buffer{};
     std::atomic<u32> m_indexW{0};
     std::atomic<u32> m_indexR{0};
@@ -121,7 +116,6 @@ private:
 
   bool m_log_dtk_audio = false;
   bool m_log_dsp_audio = false;
-  bool m_was_fast_forwarding = false;
 
   float m_config_emulation_speed;
   int m_config_timing_variance;
