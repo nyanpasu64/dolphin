@@ -72,7 +72,7 @@ private:
     void DoState(PointerWrap& p);
     void PushSamples(const short* samples, unsigned int num_samples);
     unsigned int Mix(short* samples, unsigned int numSamples, bool consider_framelimit,
-                     float emulationspeed, int timing_variance);
+                     float emulationspeed, bool should_resync, int timing_variance);
     void SetInputSampleRateDivisor(unsigned int rate_divisor);
     unsigned int GetInputSampleRateDivisor() const;
     void SetVolume(unsigned int lvolume, unsigned int rvolume);
@@ -83,7 +83,6 @@ private:
     Mixer* m_mixer;
     unsigned m_input_sample_rate_divisor;
     bool m_little_endian;
-    bool m_was_fast_forwarding = false;
     std::array<short, MAX_SAMPLES * 2> m_buffer{};
     std::atomic<u32> m_indexW{0};
     std::atomic<u32> m_indexR{0};
@@ -120,6 +119,7 @@ private:
   float m_config_emulation_speed;
   int m_config_timing_variance;
   bool m_config_audio_stretch;
+  bool m_was_fast_forwarding = false;
 
   size_t m_config_changed_callback_id;
 };
