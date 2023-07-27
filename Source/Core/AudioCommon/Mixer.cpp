@@ -62,6 +62,9 @@ unsigned int Mixer::MixerFifo::Mix(short* samples, unsigned int numSamples,
                                    bool consider_framelimit, float emulationspeed,
                                    int timing_variance)
 {
+  ERROR_LOG_FMT(AUDIO_INTERFACE,
+             "numSamples={}, consider_framelimit={}, emulationspeed={}, timing_variance={}",
+             numSamples, consider_framelimit, emulationspeed, timing_variance);
   unsigned int currentSample = 0;
 
   // Cache access in non-volatile variable
@@ -96,9 +99,14 @@ unsigned int Mixer::MixerFifo::Mix(short* samples, unsigned int numSamples,
       offset = -MAX_FREQ_SHIFT;
 
     aid_sample_rate = (aid_sample_rate + offset) * emulationspeed;
+    ERROR_LOG_FMT(AUDIO_INTERFACE,
+               "m_input_sample_rate_divisor={}, low_watermark={}, numLeft={}, m_numLeftI={}",
+               m_input_sample_rate_divisor, low_watermark, numLeft, m_numLeftI);
+    ERROR_LOG_FMT(AUDIO_INTERFACE, "offset={}, ", offset);
   }
 
   const u32 ratio = (u32)(65536.0f * aid_sample_rate / (float)m_mixer->m_sampleRate);
+  ERROR_LOG_FMT(AUDIO_INTERFACE, "aid_sample_rate={}, ratio={}\n", aid_sample_rate, ratio);
 
   s32 lvolume = m_LVolume.load();
   s32 rvolume = m_RVolume.load();
@@ -203,11 +211,11 @@ unsigned int Mixer::Mix(short* samples, unsigned int num_samples)
   else
   {
     m_dma_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
-    m_streaming_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
-    m_wiimote_speaker_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
-    m_skylander_portal_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
-    for (auto& mixer : m_gba_mixers)
-      mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
+//    m_streaming_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
+//    m_wiimote_speaker_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
+//    m_skylander_portal_mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
+//    for (auto& mixer : m_gba_mixers)
+//      mixer.Mix(samples, num_samples, true, emulation_speed, timing_variance);
     m_is_stretching = false;
   }
 
