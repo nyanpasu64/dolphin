@@ -63,8 +63,8 @@ unsigned int Mixer::MixerFifo::Mix(short* samples, unsigned int numSamples,
                                    bool consider_framelimit, float emulationspeed,
                                    bool should_resync, int timing_variance)
 {
-  fmt::print(stderr,
-             "numSamples={}, consider_framelimit={}, emulationspeed={}, timing_variance={}\n",
+  ERROR_LOG_FMT(AUDIO_INTERFACE,
+             "numSamples={}, consider_framelimit={}, emulationspeed={}, timing_variance={}",
              numSamples, consider_framelimit, emulationspeed, timing_variance);
   // Cache access in non-volatile variable
   // This is the only function changing the read value, so it's safe to
@@ -107,14 +107,14 @@ unsigned int Mixer::MixerFifo::Mix(short* samples, unsigned int numSamples,
       offset = -MAX_FREQ_SHIFT;
 
     aid_sample_rate = (aid_sample_rate + offset) * emulationspeed;
-    fmt::print(stderr,
-               "m_input_sample_rate_divisor={}, low_watermark={}, numLeft={}, m_numLeftI={}\n",
+    ERROR_LOG_FMT(AUDIO_INTERFACE,
+               "m_input_sample_rate_divisor={}, low_watermark={}, numLeft={}, m_numLeftI={}",
                m_input_sample_rate_divisor, low_watermark, numLeft, m_numLeftI);
-    fmt::print(stderr, "offset={}, ", offset);
+    ERROR_LOG_FMT(AUDIO_INTERFACE, "offset={}, ", offset);
   }
 
   const u32 ratio = (u32)(65536.0f * aid_sample_rate / (float)m_mixer->m_sampleRate);
-  fmt::print(stderr, "aid_sample_rate={}, ratio={}\n\n", aid_sample_rate, ratio);
+  ERROR_LOG_FMT(AUDIO_INTERFACE, "aid_sample_rate={}, ratio={}\n", aid_sample_rate, ratio);
 
   s32 lvolume = m_LVolume.load();
   s32 rvolume = m_RVolume.load();
